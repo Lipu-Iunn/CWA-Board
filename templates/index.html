@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>風速排行榜</title>
+  <link rel="stylesheet" href="/static/css/index.css">
+</head>
+<body>
+  <h1>即時風速排行榜</h1>
+  <div class="meta">
+    來源：CWA O-A0003-001（缺值由 O-A0001-001 補） |
+    每 {{ fetch_interval_min }} 分鐘更新一次 |
+    上次更新：<span id="updatedAt">{{ updated_at if updated_at else '尚未更新' }}</span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="toolbar">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="avg-wind">平均風</button>
+      <button class="tab-btn" data-tab="gust">陣風</button>
+    </div>
+    <div class="range">
+      <label for="rangeSel">時間段：</label>
+      <select id="rangeSel">
+        <option value="now">現在</option>
+        <option value="1h">過去 1 小時</option>
+        <option value="24h">過去 24 小時</option>
+        <option value="today">今日</option>
+      </select>
+    </div>
+  </div>
+
+  <table id="board">
+    <thead>
+      <tr>
+        <th style="width: 5%;">#</th>
+        <th style="width: 10%;">測站名稱</th>
+        <th style="width: 10%;">測站代碼</th>
+        <th style="width: 15%;">風速 (m/s)</th>
+        <th style="width: 15%;">風向 (°)</th>
+        <th style="width: 15%;">風向箭頭</th>
+        <th style="width: 15%;">時間</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" 
+    integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" 
+    crossorigin="anonymous"></script>
+  <script src="/static/js/index.js"></script>
+  <script>
+    // 當前頁面狀態
+    let cache = { rows: [] };
+    let currentTab = 'avg-wind';    // 'avg-wind' or 'gust'
+    let currentWindow = 'now';      // 'now' | '1h' | '24h' | 'today'
+
+    // 分頁事件
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTab = btn.dataset.tab;   // 'avg-wind' 或 'gust'
+        fetchAndRender();
+      });
+    });
+
+    // 時間段下拉
+    document.getElementById('rangeSel').addEventListener('change', (e)=>{
+      currentWindow = e.target.value;   // 'now' | '1h' | '24h' | 'today'
+      fetchAndRender();
+    });
+
+    // === Socket.IO 連線（強制用 WebSocket，避免降級輪詢失敗） ===
+    const socket = io({
+      path: "/socket.io",
+      transports: ["websocket"],
+      upgrade: false,            // 不升級/降級，直接 WS
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+    });
+
+    // 連線事件（方便你在瀏覽器 console 看到狀態）
+    socket.on('connect', () => {
+      console.log('[socket] connected', socket.id);
+      // 連上後先拉一次（保險）
+      fetchAndRender();
+    });
+    socket.on('connect_error', (err) => {
+      console.error('[socket] connect_error', err?.message || err);
+    });
+    socket.on('disconnect', (reason) => {
+      console.warn('[socket] disconnect', reason);
+    });
+
+    // 伺服器推送資料 → 立即更新畫面
+    socket.on('data_update', (payload) => {
+      console.log('[socket] data_update', payload);
+      fetchAndRender();
+    });
+
+    // 首次載入
+    fetchAndRender();
+  </script>
+</body>
+</html>

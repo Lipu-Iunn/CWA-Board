@@ -1,0 +1,6 @@
+.env
+stns.json
+record.db
+*.csv
+.venv
+__pycache__/
