@@ -57,6 +57,7 @@ function renderTableWithGroupFilter(tab) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${i+1}</td>
+            <td>${r.zone}</td>
             <td>${r.name}</td>
             <td class="muted">${r.station_id}</td>
             <td>${fmtNum(sp)}</td>
@@ -98,7 +99,7 @@ async function fetchAndRender() {
         }
         buildGroupFilter(data.groups);
     }
-    
+
     renderTableWithGroupFilter(currentTab);
 }
 
