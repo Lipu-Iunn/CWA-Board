@@ -54,10 +54,13 @@ def build_rows(merged: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
     """產出各站氣象參數（欄位統一：station_id/name/time/speed/dir/...）"""
     rows: List[Dict[str, Any]] = []
     for sid, entry in merged.items():
-        name = get_station_meta(sid)["name"]
+        station_meta = get_station_meta(sid)
+        name = station_meta["name"]
+        zone = station_meta["zone"]
 
         rows.append({
             "station_id": sid,
+            "zone": zone,
             "name": name,
             "time": entry.get("obs_time"),
             "speed": entry.get("speed"),

@@ -186,22 +186,22 @@ def query_rows_for_window(window: str, tab: str) -> list[dict]:
     match tab:
         case "avg-wind":
             metric = "speed"
-            columns = ["station_id", "name", "speed", "dir", "obs_time AS time"]
+            columns = ["station_id", "zone", "name", "speed", "dir", "obs_time AS time"]
         case "gust":
             metric = "gust_speed"
-            columns = ["station_id", "name", "gust_speed", "gust_dir", "gust_time AS time"]
+            columns = ["station_id", "zone", "name", "gust_speed", "gust_dir", "gust_time AS time"]
         case "daily-precip":
             metric = "precip"
-            columns = ["station_id", "name", "precip", "obs_time AS time"]
+            columns = ["station_id", "zone", "name", "precip", "obs_time AS time"]
         case "air-temp":
             metric = "air_temp"
-            columns = ["station_id", "name", "air_temp", "obs_time AS time"]
+            columns = ["station_id", "zone", "name", "air_temp", "obs_time AS time"]
         case "rh":
             metric = "rh"
-            columns = ["station_id", "name", "rh", "obs_time AS time"]
+            columns = ["station_id", "zone", "name", "rh", "obs_time AS time"]
         case _:
             metric = "speed"
-            columns = ["station_id", "name", "speed", "dir", "obs_time AS time"]
+            columns = ["station_id", "zone", "name", "speed", "dir", "obs_time AS time"]
 
     with db_connect() as conn:
         c = conn.cursor()
