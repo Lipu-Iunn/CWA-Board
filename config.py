@@ -44,7 +44,7 @@ FIELDS = "Now,WindDirection,WindSpeed,AirTemperature,RelativeHumidity,AirPressur
 FETCH_TIMEOUT = int(os.getenv("FETCH_TIMEOUT", 15))
 FETCH_INTERVAL_MIN = int(os.getenv("FETCH_INTERVAL_MIN", 1))
 CSV_DIR_NAME = os.getenv("CSV_DIR_NAME", "csv").strip()
-STATION_LIST_FILENAME = os.getenv("STATION_LIST_FILENAME", "stns.json").strip()
+STATION_LIST_FILENAME = os.getenv("STATION_LIST_FILENAME", "stations.xlsx").strip()
 
 
 # ---------- Flask / SocketIO ----------
