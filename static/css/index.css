@@ -48,6 +48,25 @@ th {
 .right {
     float: right;
 }
+.group-filter {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.group-filter button {
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.group-filter button.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
 
 /* Wind Arrow */
 td.dir-arrow {
