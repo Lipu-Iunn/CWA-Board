@@ -25,6 +25,7 @@ def db_init():
         c.execute("""
         CREATE TABLE IF NOT EXISTS observations (
             station_id   TEXT NOT NULL,  -- 測站代碼
+            zone         TEXT,           -- 縣市/鄉鎮市區
             name         TEXT,           -- 測站名稱
             obs_time     TEXT NOT NULL,  -- 觀測時間 "%Y-%m-%d %H:%M:%S" (UTC+8)
             speed        REAL,           -- 平均風風速
@@ -61,6 +62,7 @@ def save_observations(rows: List[Dict]):
             continue
         payload.append((
             sid,
+            r.get("zone"),
             r.get("name"),
             obs_time,
             r.get("speed"),
@@ -82,12 +84,13 @@ def save_observations(rows: List[Dict]):
 
     sql = """
     INSERT INTO observations (
-      station_id, name, obs_time,
+      station_id, zone, name, obs_time,
       speed, dir, gust_speed, gust_dir, gust_time,
       precip, air_temp, rh, pres,
       tmax, tmax_time, tmin, tmin_time
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(station_id, obs_time) DO UPDATE SET
+      zone         = excluded.zone,
       name         = excluded.name,
       speed        = excluded.speed,
       dir          = excluded.dir,
@@ -136,7 +139,7 @@ def write_csv_for_day(base_day: date):
     with out_path.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
         w.writerow([
-            "測站代碼", "測站名稱", "觀測時間",
+            "測站代碼", "鄉鎮市區", "測站名稱", "觀測時間",
             "平均風風速(m/s)", "平均風風向(°)",
             "最大陣風風速(m/s)", "最大陣風風向(°)", "最大陣風時間",
             "日累積雨量(mm)", "溫度(℃)", "相對溼度(%)", "氣壓(hPa)",
@@ -150,6 +153,7 @@ def write_csv_for_day(base_day: date):
         for r in rows:
             w.writerow([
                 r["station_id"],
+                r["zone"],
                 r["name"],
                 r["obs_time"] or "",
                 d(r["speed"]),
