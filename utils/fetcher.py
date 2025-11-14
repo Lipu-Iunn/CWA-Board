@@ -1,7 +1,7 @@
 import requests
 from typing import Dict, Any, List
 import config
-from utils.stations import STATIONS
+from utils.stations import get_all_station_ids, get_station_meta
 import utils.parser as parser
 import utils.cleaners as cleaners
 
@@ -54,10 +54,13 @@ def build_rows(merged: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
     """產出各站氣象參數（欄位統一：station_id/name/time/speed/dir/...）"""
     rows: List[Dict[str, Any]] = []
     for sid, entry in merged.items():
-        name = STATIONS.get(sid, sid)
+        station_meta = get_station_meta(sid)
+        name = station_meta["name"]
+        zone = station_meta["zone"]
 
         rows.append({
             "station_id": sid,
+            "zone": zone,
             "name": name,
             "time": entry.get("obs_time"),
             "speed": entry.get("speed"),
@@ -83,7 +86,7 @@ def fetch_data() -> List[Dict[str, Any]]:
     先抓 API1 全量 -> 找出缺失/風速為 None 的站 -> 用 API2 補 -> 合併
     回傳排序後的 list[ {station_id, name, speed, dir, gust} ]
     """
-    all_ids = list(STATIONS.keys())
+    all_ids = get_all_station_ids()
 
     # 1) API1 全抓
     data1 = fetch_from_api(config.API1, all_ids)

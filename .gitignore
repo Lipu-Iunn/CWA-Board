@@ -1,5 +1,5 @@
 .env
-stns.json
+stations.xlsx
 record.db
 *.csv
 .venv

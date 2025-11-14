@@ -16,10 +16,14 @@
 
   <!-- Tabs -->
   <div class="toolbar">
+    <!-- 篩選器：產區群組 -->
+    <div id="group-filter" class="group-filter"></div>
+    <!-- 篩選器：氣象參數 -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="avg-wind">平均風</button>
       <button class="tab-btn" data-tab="gust">陣風</button>
     </div>
+    <!-- 篩選器：時間段 -->
     <div class="range">
       <label for="rangeSel">時間段：</label>
       <select id="rangeSel">
@@ -35,7 +39,8 @@
     <thead>
       <tr>
         <th style="width: 5%;">#</th>
-        <th style="width: 10%;">測站名稱</th>
+        <th style="width: 12%;">鄉鎮市區</th>
+        <th style="width: 12%;">測站名稱</th>
         <th style="width: 10%;">測站代碼</th>
         <th style="width: 15%;">風速 (m/s)</th>
         <th style="width: 15%;">風向 (°)</th>

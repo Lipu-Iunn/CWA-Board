@@ -1,6 +1,7 @@
 from flask import render_template, jsonify, request
 import config
 import modules.db as db
+from utils.stations import load_station_groups, get_station_meta
 
 
 @config.app.route("/")
@@ -25,14 +26,36 @@ def api_data():
 
     updated_str = updated_at.strftime("%Y-%m-%d %H:%M:%S") if updated_at else None
 
+    all_groups, _, _ = load_station_groups()
+
     if window and tab:
         try:
             rows = db.query_rows_for_window(window, tab)
-            return jsonify({"updated_at": updated_str, "rows": rows})
+            # 補上 zone / groups
+            for row in rows:
+                sid = row.get("station_id")
+                meta = get_station_meta(sid)
+                if not meta:
+                    continue
+                row["zone"] = meta.get("zone")
+                row["groups"] = meta.get("groups", [])
+            return jsonify({
+                "updated_at": updated_str,
+                "groups": all_groups,
+                "rows": rows
+            })
         except Exception as e:
             config.app.logger.exception(f"/api/data query failed: {e}")
             # 失敗退回快取
-            return jsonify({"updated_at": updated_str, "rows": cached_rows})
+            return jsonify({
+                "updated_at": updated_str,
+                "groups": all_groups,
+                "rows": cached_rows
+            })
     else:
         # 原行為：回傳快取（最新一輪）
-        return jsonify({"updated_at": updated_str, "rows": cached_rows})
+        return jsonify({
+            "updated_at": updated_str,
+            "groups": all_groups,
+            "rows": cached_rows
+        })
