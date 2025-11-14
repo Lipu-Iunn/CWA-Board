@@ -9,6 +9,7 @@
 - 使用 SQLite 存取資料，支援過去一段時間內查詢
 - 自動輸出每日 UTF-8-BOM CSV（YYYYMMDD.csv）
 - 以 APScheduler 定期清理資料庫（保留近 48 小時）
+- 測站清單以 Excel（`stations.xlsx`）維護，以工作表代表不同「群組」。前端可切換群組檢視
 
 ## 專案架構
 
@@ -20,8 +21,8 @@
   - `fetcher.py`：抓取、合併 CWA 資料
   - `parser.py`：解析各 API 欄位與時間格式、時間窗計算
   - `cleaners.py`：修正不合理的資料
-  - `scheduler_jobs.py`：排程任務（抓取/寫庫/輸出 CSV/推播/清理）
-  - `stations.py`：載入測站清單 `stns.json`
+  - `scheduler_jobs.py`：排程任務（抓取/寫庫/輸出 CSV/推播/清理庫）
+  - `stations.py`：讀取測站清單 Excel 檔，提供群組與測站名單資料
 - 前端：`templates/index.html`、`static/js/index.js`、`static/css/index.css`
 - 資料輸出：`csv/`（每日 CSV）、`record.db`（SQLite）
 
@@ -46,18 +47,28 @@ CWA_TOKEN=填入你的_CWA_TOKEN
 FETCH_TIMEOUT=15
 FETCH_INTERVAL_MIN=1
 CSV_DIR_NAME=csv
-STATION_LIST_FILENAME=stns.json
+STATION_LIST_FILENAME=stations.xlsx
 ```
 
-3. 準備測站清單：
-- 從 `stns.json.sample` 複製為 `stns.json`，並依實際需求調整內容（`{"測站代碼":"測站名稱"}` 映射）
+3. 準備測站清單 `stations.xlsx`（預設檔名可由 `STATION_LIST_FILENAME` 覆蓋）：
+   - 每個「工作表」代表一個群組（例如：茶葉產區、咖啡產區⋯）；前端群組按鈕即來自這些表名，加上內建的「全部」。
+   - 每個工作表需包含下列欄位（不分大小寫，會自動比對）：
+     - `stno`：測站代碼
+     - `zone`：縣市/鄉鎮市區
+     - `name`：測站名稱
 
-### 環境變數說明：
+   範例（任一工作表）：
+
+   | stno   | zone     | name           |
+   |--------|----------|----------------|
+   | 72D680 | 新竹縣新埔鎮 | 新竹桃改新埔分場 |
+
+### 環境變數說明
 - `CWA_TOKEN`：CWA 開放資料授權碼，必要
 - `FETCH_TIMEOUT`：呼叫 API 逾時的時間間隔（秒鐘，預設 15）
 - `FETCH_INTERVAL_MIN`：定時抓取時間間隔（分鐘，預設 1）
 - `CSV_DIR_NAME`：輸出 CSV 的子資料夾名稱（預設 `csv`）
-- `STATION_LIST_FILENAME`：測站清單檔名（預設 `stns.json`）
+- `STATION_LIST_FILENAME`：測站清單 Excel 檔名（預設 `stations.xlsx`）
 
 ## 快速開始
 
@@ -91,20 +102,22 @@ config.socketio.run(config.app, host="0.0.0.0", port=5000, debug=False, use_relo
 ## API
 
 ### GET `/api/data`
-查詢時間窗與指標，回傳每站一筆代表資料。
+查詢時間段與特定氣象參數數值，回傳每站對應資料。
 
-### Query 參數：
+### Query 參數
 - `window`：`now` | `1h` | `24h` | `today`
 - `tab`：`avg-wind` | `gust` | `daily-precip` | `air-temp` | `rh`
 
-### 回應格式：
+### 回應格式（節錄）
 ```json
 {
   "updated_at": "2025-10-27 12:34:56",
+  "groups": ["全部", "茶葉產區", "咖啡產區"],
   "rows": [
     {
       "station_id": "72D680",
-      "name": "新竹桃改新埔分場",
+      "zone": "新竹縣新埔鎮",
+      "name": "桃改新埔分場",
       "time": "2025-10-27 12:34:00",
       "speed": 12.3,
       "dir": 280,
@@ -118,13 +131,14 @@ config.socketio.run(config.app, host="0.0.0.0", port=5000, debug=False, use_relo
       "tmin": 22.3,
       "tmin_time": "2025-10-27 02:40:00",
       "rh": 68.0,
-      "pres": 1006.1
+      "pres": 1006.1,
+      "groups": ["茶葉產區"]
     }
   ]
 }
 ```
 
-### 行為說明：
+### 行為說明
 - `window=now`：每站「最新一筆」觀測
 - 其他時間段：於區間內依指定參數選取最大值，若有多筆最大值，取最新時間（使用視窗函數挑選）
 - 當查詢失敗時，會回退使用後端快取最新一次的資料
@@ -140,10 +154,11 @@ config.socketio.run(config.app, host="0.0.0.0", port=5000, debug=False, use_relo
 
 ## 資料庫與 CSV
 
-### 資料表 `observations`：
+### 資料表 `observations`
 ```sql
 CREATE TABLE observations (
   station_id TEXT NOT NULL,
+  zone       TEXT,
   name       TEXT,
   obs_time   TEXT NOT NULL,  -- '%Y-%m-%d %H:%M:%S' (UTC+8)
   speed      REAL,
@@ -163,16 +178,18 @@ CREATE TABLE observations (
 );
 ```
 
-### CSV 輸出：
-- 檔名：`YYYYMMDD.csv`，含 BOM，欄位含測站代碼、測站名稱、觀測時間、平均風風速、平均風風向、最大陣風風速、最大陣風風向、最大陣風時間、日雨量、溫度、相對溼度、氣壓、日最高溫、日最高溫時間、日最低溫、日最低溫時間
+### CSV 輸出
+- 檔名：`YYYYMMDD.csv`（含 BOM）
+- 欄位：測站代碼、鄉鎮市區、測站名稱、觀測時間、平均風風速、平均風風向、最大陣風風速、最大陣風風向、最大陣風時間、日雨量、溫度、相對溼度、氣壓、日最高溫、日最高溫時間、日最低溫、日最低溫時間
 - 時間範圍：(day 00:00, day+1 00:00]（起點排除、終點包含）
 
-### 重置資料：
-- 程式停止後，刪除 `record.db` 即可重新累積
+### 重置資料
+- 程式停止後，刪除 `record.db` 即可重新累積（CSV 不會被刪）
 
 ## 前端操作說明
 
 - 分頁：平均風、陣風
+- 群組：依 `stations.xlsx` 各工作表產生（另含「全部」），只影響前端篩選不重打 API
 - 時間段：現在、過去 1 小時、過去 24 小時、今日
 - 風向箭頭：顯示風的「去向」，由風向角度 +180° 旋轉
 
@@ -182,5 +199,8 @@ CREATE TABLE observations (
 - 首頁顯示「尚未更新」：等待排程第一次抓取完成，或確認後端是否有網路/權杖正確
 - WebSocket 無法連線：
   - 確認前端使用 `transports: ["websocket"]`，避免降級輪詢
-  - 若反向代理/雲端環境，需允許 WebSocket 協定
-- `stns.json` 找不到：請確保檔案存在於專案根目錄，且 `STATION_LIST_FILENAME` 指向正確檔名
+  - 若反向代理/雲端環境，需允許 WebSocket 協定與 `/socket.io` 路徑
+- `stations.xlsx` 找不到或格式錯誤：
+  - 確認檔案位於專案根目錄，且檔名與 `STATION_LIST_FILENAME` 一致
+  - 確認各工作表皆含欄位 `stno`、`zone`、`name`（不分大小寫）
+- CSV/DB 路徑：程式以「目前工作目錄」為準；請注意服務啟動目錄
