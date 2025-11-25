@@ -135,7 +135,7 @@ function buildGroupFilter(groups) {
 
       // 只改變前端篩選，不重打 API
       if (LAST_DATA) {
-        renderTableWithGroupFilter(LAST_DATA);
+        renderTableWithGroupFilter(currentTab);
       }
     });
 
